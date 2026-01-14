@@ -45,6 +45,26 @@ pub fn launch_process_with_name(
     working_dir: Option<String>,
 ) -> io::Result<()> {
     let script_name = &script_args[0];
+
+    {
+        use sysinfo::{Pid, System};
+        let mut sys = System::new_all();
+        sys.refresh_all();
+
+        let state = read_state(state_file);
+        for (pid_str, proc) in state {
+            if proc.script_name == *script_name && proc.status == "running" {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    if sys.process(Pid::from_u32(pid)).is_some() {
+                        println!("Process {} is already running (PID {}). Skipping Launch", script_name, pid);
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+
+
     let args = &script_args[1..];
     let cwd = working_dir.unwrap_or_else(|| env::current_dir().unwrap().to_string_lossy().to_string());
 

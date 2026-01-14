@@ -3,7 +3,6 @@ name = "ksai_proc"
 version = "0.1.0"
 edition = "2024"
 authors = ["Darrson Charwak <theanimatorspal@example.com>"]
-edition = "2021"
 description = "A lightweight TUI process manager written in Rust"
 license = "MIT" # or "Apache-2.0"
 repository = "https://github.com/theanimatorspal/ksai_proc"
@@ -17,3 +16,4 @@ ratatui = "0.30.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.148"
 sysinfo = "0.37.2"
+fs2 = "0.4"
