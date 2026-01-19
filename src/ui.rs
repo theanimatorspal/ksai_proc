@@ -6,10 +6,10 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Table, Row, Cell},
     Frame, Terminal,
 };
-use crate::{process::*, state::*, types::*};
+use crate::{process::*, state::*, types::*, app::App};
 
 pub fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
@@ -21,6 +21,14 @@ pub fn run_app(
         if app.last_reap.elapsed().unwrap_or_default() > Duration::from_millis(500) {
             app.last_reap = std::time::SystemTime::now();
             app.processes = reap_processes(state_file);
+            
+            // Update monitor
+            let pids: Vec<u32> = app.processes.iter()
+                .filter(|(_, p)| p.status == "running")
+                .filter_map(|(pid_s, _)| pid_s.parse().ok())
+                .collect();
+            app.monitor.update(&pids);
+
             if app.selected_index >= app.processes.len() && !app.processes.is_empty() {
                 app.selected_index = app.processes.len() - 1;
             }
@@ -82,6 +90,7 @@ pub fn run_app(
 
                         match key.code {
                             KeyCode::Char('q') => return Ok(()),
+                            KeyCode::Char('s') => app.show_resources = !app.show_resources,
                             KeyCode::Char('p') => app.is_paused = true,
                             KeyCode::Char('j') => {
                                 if !app.processes.is_empty() {
@@ -258,7 +267,61 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     let list = List::new(items).block(Block::default().borders(Borders::ALL).title(" Processes (j/k) "));
     f.render_widget(list, chunks[0]);
 
-    if app.selected_index < app.processes.len() {
+    if app.show_resources {
+        let header_cells = ["PID", "Name", "CPU%", "MxCPU", "RAM", "MxRAM", "Disk", "Thrd"]
+            .iter()
+            .map(|h| Cell::from(*h).style(Style::default().fg(Color::Yellow)));
+        let header = Row::new(header_cells).height(1).bottom_margin(1);
+
+        let rows = app.processes.iter().map(|(pid_str, proc)| {
+            let pid: u32 = pid_str.parse().unwrap_or(0);
+            if let Some(stats) = app.monitor.get_stats(pid) {
+                let cpu = format!("{:.1}", stats.cpu_usage);
+                let max_cpu = format!("{:.1}", stats.max_cpu);
+                let mem = format!("{:.1}M", stats.mem_usage as f64 / 1024.0 / 1024.0);
+                let max_mem = format!("{:.1}M", stats.max_mem as f64 / 1024.0 / 1024.0);
+                let disk = format!("{}/{}", stats.disk_read / 1024, stats.disk_written / 1024); // KB
+                let threads = format!("{}", stats.thread_count);
+
+                Row::new(vec![
+                    Cell::from(pid_str.as_str()),
+                    Cell::from(proc.display_name.as_str()),
+                    Cell::from(cpu),
+                    Cell::from(max_cpu),
+                    Cell::from(mem),
+                    Cell::from(max_mem),
+                    Cell::from(disk),
+                    Cell::from(threads),
+                ])
+            } else {
+                 Row::new(vec![
+                    Cell::from(pid_str.as_str()),
+                    Cell::from(proc.display_name.as_str()),
+                    Cell::from("-"),
+                    Cell::from("-"),
+                    Cell::from("-"),
+                    Cell::from("-"),
+                    Cell::from("-"),
+                    Cell::from("-"),
+                ])
+            }
+        });
+
+        let table = Table::new(rows, [
+            Constraint::Length(6),
+            Constraint::Percentage(20),
+            Constraint::Length(6),
+            Constraint::Length(6),
+            Constraint::Length(8),
+            Constraint::Length(8),
+            Constraint::Percentage(20),
+            Constraint::Length(5),
+        ])
+        .header(header)
+        .block(Block::default().borders(Borders::ALL).title(" Resource Usage (Live/Max) "));
+        f.render_widget(table, chunks[1]);
+
+    } else if app.selected_index < app.processes.len() {
         let (_, proc) = &app.processes[app.selected_index];
         let log_file = proc.log_file.clone();
 

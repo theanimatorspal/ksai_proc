@@ -2,11 +2,13 @@ mod state;
 mod process;
 mod ui;
 mod types;
+mod monitor;
+mod app;
 
 use std::{env, fs, path::PathBuf, time::Duration};
 use crossterm::{execute, terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen}};
 use ratatui::{backend::CrosstermBackend, Terminal};
-use crate::{process::*, state::*, ui::*, types::*};
+use crate::{process::*, state::*, ui::*, types::*, app::App};
 
 fn main() {
     let exe_dir = env::current_exe().unwrap().parent().unwrap().to_path_buf();
