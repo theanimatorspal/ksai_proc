@@ -60,7 +60,8 @@ pub fn reap_processes(state_file: &Path) -> Vec<(String, ProcessInfo)> {
 
         if let Some(timeout) = proc.timeout_sec {
             if is_alive && (now - proc.start_time) > timeout {
-                unsafe { libc::kill(pid as i32, libc::SIGKILL); }
+                unsafe { libc::kill(-(pid as i32), libc::SIGKILL); }
+                std::thread::sleep(std::time::Duration::from_millis(200)); // Added sleep after kill
                 proc.status = "killed (timeout)".to_string();
                 if let Ok(mut f) = std::fs::OpenOptions::new().append(true).open(&proc.log_file) {
                     use std::io::Write;

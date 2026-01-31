@@ -1,6 +1,5 @@
 use std::{env, fs::{self, OpenOptions}, io, os::unix::process::CommandExt, path::{Path, PathBuf}, process::{Command, Stdio}, time::{SystemTime, UNIX_EPOCH}};
 use crate::state::*;
-use crate::types::ProcessInfo;
 
 pub fn parse_timeout(s: &str) -> Option<f64> {
     let s = s.trim();
@@ -25,15 +24,7 @@ fn find_script(script_dir: &Path, name: &str) -> Option<PathBuf> {
     None
 }
 
-pub fn launch_process(
-    script_dir: &Path,
-    state_file: &Path,
-    log_dir: &Path,
-    script_args: &[String],
-    timeout_sec: Option<f64>,
-) -> io::Result<()> {
-    launch_process_with_name(script_dir, state_file, log_dir, script_args, timeout_sec, None, None)
-}
+
 
 pub fn launch_process_with_name(
     script_dir: &Path,
@@ -45,30 +36,10 @@ pub fn launch_process_with_name(
     working_dir: Option<String>,
 ) -> io::Result<()> {
     let script_name = &script_args[0];
-
-    {
-        use sysinfo::{Pid, System};
-        let mut sys = System::new_all();
-        sys.refresh_all();
-
-        let state = read_state(state_file);
-        for (pid_str, proc) in state {
-            if proc.script_name == *script_name && proc.status == "running" {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    if sys.process(Pid::from_u32(pid)).is_some() {
-                        println!("Process {} is already running (PID {}). Skipping Launch", script_name, pid);
-                        return Ok(());
-                    }
-                }
-            }
-        }
-    }
-
-
     let args = &script_args[1..];
     let cwd = working_dir.unwrap_or_else(|| env::current_dir().unwrap().to_string_lossy().to_string());
 
-    let (cmd, cmd_args, script_path) = if let Some(path) = find_script(script_dir, script_name) {
+    let (cmd, cmd_args, _script_path) = if let Some(path) = find_script(script_dir, script_name) {
         if path.extension().and_then(|s| s.to_str()) == Some("py") {
             ("python3".to_string(), [vec![path.to_string_lossy().to_string()], args.to_vec()].concat(), path.to_string_lossy().to_string())
         } else {
@@ -85,6 +56,26 @@ pub fn launch_process_with_name(
     } else {
         (script_name.clone(), args.to_vec(), script_name.clone())
     };
+
+    let cmd_str = format!("{} {}", cmd, cmd_args.join(" "));
+
+    {
+        use sysinfo::{Pid, System};
+        let mut sys = System::new_all();
+        sys.refresh_all();
+
+        let state = read_state(state_file);
+        for (pid_str, proc) in state {
+            if proc.cmd_str == cmd_str && proc.working_dir == cwd && proc.status == "running" {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    if sys.process(Pid::from_u32(pid)).is_some() {
+                        return Err(io::Error::new(io::ErrorKind::Other, format!("Process '{}' is already running in {} (PID {})", cmd_str, cwd, pid)));
+                    }
+                }
+            }
+        }
+    }
+
 
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
     let clean_name: String = script_name.chars().filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-').collect();
@@ -111,7 +102,6 @@ pub fn launch_process_with_name(
 
     let child = child.spawn()?;
 
-    let cmd_str = format!("{} {}", cmd, cmd_args.join(" "));
     let final_name = display_name.unwrap_or_else(|| script_name.clone());
     
     register_process(state_file, child.id(), &cmd_str, timeout_sec, &log_file, script_name, &cwd, &final_name);
@@ -119,7 +109,7 @@ pub fn launch_process_with_name(
     Ok(())
 }
 
-pub fn revive_dead_processes(script_dir: &Path, state_file: &Path, log_dir: &Path) {
+pub fn revive_dead_processes(_script_dir: &Path, state_file: &Path, _log_dir: &Path) {
     use std::io::Write;
     use chrono::Local;
     use sysinfo::{Pid, System};

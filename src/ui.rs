@@ -110,7 +110,8 @@ pub fn run_app(
                                 if let Some((pid_str, proc)) = app.processes.get(app.selected_index) {
                                     if proc.status == "running" {
                                         let pid: i32 = pid_str.parse().unwrap_or(0);
-                                        unsafe { libc::kill(pid, libc::SIGKILL); }
+                                        unsafe { libc::kill(-pid, libc::SIGKILL); }
+                                        std::thread::sleep(std::time::Duration::from_millis(200));
                                         let mut state = read_state(state_file);
                                         if let Some(p) = state.get_mut(pid_str) {
                                             p.status = "killed (manual)".to_string();
@@ -136,7 +137,8 @@ pub fn run_app(
                                     let old_pid: i32 = pid_str.parse().unwrap_or(0);
 
                                     if proc.status == "running" {
-                                        unsafe { libc::kill(old_pid, libc::SIGKILL); }
+                                        unsafe { libc::kill(-old_pid, libc::SIGKILL); }
+                                        std::thread::sleep(std::time::Duration::from_millis(200));
                                     }
 
                                     let mut state = read_state(state_file);
@@ -176,7 +178,8 @@ pub fn run_app(
                                     let pid: i32 = pid_str.parse().unwrap_or(0);
 
                                     if proc.status == "running" {
-                                        unsafe { libc::kill(pid, libc::SIGKILL); }
+                                        unsafe { libc::kill(-pid, libc::SIGKILL); }
+                                        std::thread::sleep(std::time::Duration::from_millis(200));
                                     }
 
                                     app.log_readers.remove(&proc.log_file);
