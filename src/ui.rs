@@ -381,7 +381,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     } else if !app.error_message.is_empty() {
         app.error_message.clone()
     } else {
-        "[o]pen cmd | [x]kill | [X]remove | [c]lear logs | [j/k]navigate | [q]uit | [R]restart | [p]pause".to_string()
+        "[o]pen cmd | [x]kill | [X]remove | [c]lear logs | [j/k]navigate | [q]uit | [R]restart | [p]pause | [s]toggle resources".to_string()
     };
 
     let footer_style = if !app.error_message.is_empty() {

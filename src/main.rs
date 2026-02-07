@@ -108,13 +108,67 @@ fn main() {
             let mut procs: Vec<_> = state.into_iter().collect();
             procs.sort_by(|a, b| b.1.start_time.partial_cmp(&a.1.start_time).unwrap());
             
-            println!("{:<10} {:<20} {:<15} {:<30}", "PID", "Status", "Started", "Command");
-            println!("{}", "-".repeat(75));
-            for (pid, proc) in procs {
+            if procs.is_empty() {
+                println!("No processes running.");
+                return;
+            }
+
+            // Calculate widths
+            let mut max_pid = 3; // "PID"
+            let mut max_status = 6; // "Status"
+            let mut max_started = 19; // "YYYY-MM-DD HH:MM:SS"
+            let mut max_dir = 9; // "Directory"
+            let mut max_cmd = 7; // "Command"
+
+            // Pre-calculate formatted strings to determine widths
+            let rows: Vec<_> = procs.iter().map(|(pid, proc)| {
                 let started = chrono::DateTime::from_timestamp(proc.start_time as i64, 0)
                     .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
                     .unwrap_or_else(|| "Unknown".to_string());
-                println!("{:<10} {:<20} {:<15} {:<30}", pid, proc.status, started, proc.cmd_str);
+                
+                max_pid = max_pid.max(pid.len());
+                max_status = max_status.max(proc.status.len());
+                max_started = max_started.max(started.len());
+                max_dir = max_dir.max(proc.working_dir.len());
+                max_cmd = max_cmd.max(proc.cmd_str.len());
+
+                (pid, proc, started)
+            }).collect();
+
+            // Add some padding
+            max_pid += 2;
+            max_status += 2;
+            max_started += 2;
+            max_dir += 2;
+            // max_cmd is last, doesn't need strict padding limit if it's last, 
+            // but if we put Directory before Command, Command is last.
+            
+            // Header
+            println!(
+                "{:<w_pid$} {:<w_status$} {:<w_started$} {:<w_dir$} {:<w_cmd$}", 
+                "PID", "Status", "Started", "Directory", "Command",
+                w_pid = max_pid,
+                w_status = max_status,
+                w_started = max_started,
+                w_dir = max_dir,
+                w_cmd = max_cmd
+            );
+            
+            // Separator
+            let total_width = max_pid + max_status + max_started + max_dir + max_cmd;
+            println!("{}", "-".repeat(total_width + 5)); // +5 for extra safety margin
+
+            // Rows
+            for (pid, proc, started) in rows {
+                println!(
+                    "{:<w_pid$} {:<w_status$} {:<w_started$} {:<w_dir$} {:<w_cmd$}", 
+                    pid, proc.status, started, proc.working_dir, proc.cmd_str,
+                    w_pid = max_pid,
+                    w_status = max_status,
+                    w_started = max_started,
+                    w_dir = max_dir,
+                    w_cmd = max_cmd
+                );
             }
         }
         Some(Commands::Stop { pid }) => {
