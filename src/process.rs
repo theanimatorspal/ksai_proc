@@ -114,11 +114,12 @@ pub fn revive_dead_processes(_script_dir: &Path, state_file: &Path, _log_dir: &P
     use chrono::Local;
     use sysinfo::{Pid, System};
     
-    let mut state = read_state(state_file);
+    // Initial read to identify candidates
     let mut sys = System::new_all();
     sys.refresh_all();
     
-    let pids_to_revive: Vec<_> = state.iter()
+    let initial_state = read_state(state_file);
+    let pids_to_revive: Vec<_> = initial_state.iter()
         .filter_map(|(pid_str, proc)| {
             if proc.status != "running" {
                 return None;
@@ -132,9 +133,20 @@ pub fn revive_dead_processes(_script_dir: &Path, state_file: &Path, _log_dir: &P
         })
         .collect();
     
+    if pids_to_revive.is_empty() {
+        return;
+    }
+
+    println!("Found {} processes to revive.", pids_to_revive.len());
+
     for (old_pid, proc) in pids_to_revive {
-        state.remove(&old_pid);
-        write_state(state_file, &state);
+        println!("Reviving process {} (old PID: {})...", proc.cmd_str, old_pid);
+        // Remove old process from state file immediately
+        {
+            let mut current_state = read_state(state_file);
+            current_state.remove(&old_pid);
+            write_state(state_file, &current_state);
+        }
         
         if let Ok(mut f) = OpenOptions::new().append(true).open(&proc.log_file) {
             writeln!(f, "\n--- 🔄 AUTO-REVIVED (was PID {}) @ {} ---", old_pid, Local::now()).ok();
@@ -142,21 +154,29 @@ pub fn revive_dead_processes(_script_dir: &Path, state_file: &Path, _log_dir: &P
 
         let parts: Vec<&str> = proc.cmd_str.split_whitespace().collect();
         if !parts.is_empty() {
-            let log_handle = OpenOptions::new().create(true).append(true).open(&proc.log_file).unwrap();
-
-            if let Ok(child) = unsafe {
-                Command::new(parts[0])
-                    .args(&parts[1..])
-                    .current_dir(&proc.working_dir)
-                    .stdout(Stdio::from(log_handle.try_clone().unwrap()))
-                    .stderr(Stdio::from(log_handle))
-                    .pre_exec(|| {
-                        libc::setsid();
-                        Ok(())
-                    })
-                    .spawn()
-            } {
-                register_process(state_file, child.id(), &proc.cmd_str, proc.timeout_sec, Path::new(&proc.log_file), &proc.script_name, &proc.working_dir, &proc.display_name);
+            let log_handle_res = OpenOptions::new().create(true).append(true).open(&proc.log_file);
+            
+            if let Ok(log_handle) = log_handle_res {
+                if let Ok(child) = unsafe {
+                    Command::new(parts[0])
+                        .args(&parts[1..])
+                        .current_dir(&proc.working_dir)
+                        .stdout(Stdio::from(log_handle.try_clone().unwrap()))
+                        .stderr(Stdio::from(log_handle))
+                        .pre_exec(|| {
+                            libc::setsid();
+                            Ok(())
+                        })
+                        .spawn()
+                } {
+                    let new_pid = child.id();
+                    println!("  -> Started with new PID: {}", new_pid);
+                    register_process(state_file, new_pid, &proc.cmd_str, proc.timeout_sec, Path::new(&proc.log_file), &proc.script_name, &proc.working_dir, &proc.display_name);
+                } else {
+                    eprintln!("Failed to spawn process for revival: {}", proc.cmd_str);
+                }
+            } else {
+                eprintln!("Failed to open log file for revival: {}", proc.log_file);
             }
         }
     }
