@@ -1,0 +1,33 @@
+sequenceDiagram
+    participant User
+    participant CLI as "ksai_proc CLI"
+    participant State as "State File"
+    participant Sys as "System OS"
+
+    Note over User, Sys: Launching a Process
+    User->>CLI: run --name "MyServer" -- cmd args
+    CLI->>Sys: Spawn Process (cmd args)
+    Sys-->>CLI: PID: 12345
+    CLI->>State: Write Process Info (PID, cmd, name, status="running")
+    CLI->>User: "Process launched successfully"
+
+    Note over User, Sys: Stopping a Process
+    User->>CLI: stop 12345
+    CLI->>State: Read Info for 12345
+    State-->>CLI: { cmd: ..., status: "running" }
+    CLI->>Sys: kill(12345, SIGKILL)
+    CLI->>State: Update status to "killed (manual)"
+    CLI->>User: "Process 12345 stopped"
+
+    Note over User, Sys: Restarting a Process
+    User->>CLI: restart 12345
+    CLI->>State: Read Info for 12345
+    State-->>CLI: { cmd: ..., args: ..., log: ... }
+    opt Process is Running
+        CLI->>Sys: kill(12345)
+    end
+    CLI->>State: Remove entry 12345
+    CLI->>Sys: Spawn (cmd, new PID)
+    Sys-->>CLI: PID: 67890
+    CLI->>State: Write Entry (PID: 67890, ...)
+    CLI->>User: "Process restarted with new PID 67890"

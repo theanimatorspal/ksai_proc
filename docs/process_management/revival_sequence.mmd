@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant User
+    participant CLI
+    participant State
+    participant Sys as System OS
+
+    User->>CLI: Invokes (list, run, revive, etc.)
+    CLI->>State: Read All Processes
+    State-->>CLI: List of {PID, Status, Cmd...}
+    
+    loop For Each Process P
+        alt P.Status == "running" AND !Sys.exists(P.PID)
+            CLI->>CLI: Identification: DEAD
+            CLI->>State: Remove Old Entry (P.PID)
+            CLI->>Sys: Spawn(P.Cmd, P.Args, P.Cwd)
+            Sys-->>CLI: New PID: NEW_PID
+            CLI->>State: Write New Entry (NEW_PID, Status="running")
+            CLI->>LogFile: Append "AUTO-REVIVED"
+        end
+    end
+    
+    CLI->>User: "Revival check complete"

@@ -1,0 +1,28 @@
+flowchart TD
+    Start[Start TUI] --> Init[Init Terminal (Crossterm)]
+    Init --> Loop
+
+    subgraph "Main Loop (tick ms)"
+        Loop --> CheckReap{Time to Reap?}
+        CheckReap -- Yes --> Reap[Reap Dead Processes]
+        Reap --> UpdateMon[Update Resource Monitor]
+        UpdateMon --> Draw
+        CheckReap -- No --> Draw
+        
+        Draw[Render UI Frame] --> Poll{Poll Input?}
+        Poll -- Key Press --> HandleKey[Handle Input]
+        Poll -- No Input --> Loop
+        
+        HandleKey -- 'q' --> Exit
+        HandleKey -- 'j/k' --> SelectProc[Change Selection]
+        HandleKey -- 'x' --> KillProc[Kill Process]
+        HandleKey -- 'R' --> Restart[Restart Process]
+        HandleKey -- Other --> UpdateState[Update App State]
+        
+        SelectProc --> Loop
+        KillProc --> Loop
+        Restart --> Loop
+        UpdateState --> Loop
+    end
+
+    Exit[Restore Terminal] --> Stop

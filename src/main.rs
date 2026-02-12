@@ -48,7 +48,13 @@ enum Commands {
     /// List all tracked processes
     List,
     /// Stop a running process by PID
-    Stop { pid: String },
+    Stop {
+        /// PID of the process
+        pid: Option<String>,
+        /// Name of the process
+        #[arg(long)]
+        name: Option<String>,
+    },
     /// Remove a process from tracking by PID
     Remove { pid: String },
     /// Restart a process by PID
@@ -171,21 +177,32 @@ fn main() {
                 );
             }
         }
-        Some(Commands::Stop { pid }) => {
+        Some(Commands::Stop { pid, name }) => {
             let mut state = read_state(&state_file);
-            if let Some(proc) = state.get_mut(&pid) {
-                if proc.status == "running" {
-                    let pid_val: i32 = pid.parse().unwrap_or(0);
-                    unsafe { libc::kill(-pid_val, libc::SIGKILL); }
-                    std::thread::sleep(std::time::Duration::from_millis(200));
-                    proc.status = "killed (manual)".to_string();
-                    write_state(&state_file, &state);
-                    println!("Process {} stopped.", pid);
+            
+            let target_pid = if let Some(n) = name {
+                state.iter().find(|(_, p)| p.display_name == n).map(|(pid, _)| pid.clone())
+            } else {
+                pid
+            };
+
+            if let Some(pid_str) = target_pid {
+                if let Some(proc) = state.get_mut(&pid_str) {
+                    if proc.status == "running" {
+                        let pid_val: i32 = pid_str.parse().unwrap_or(0);
+                        unsafe { libc::kill(-pid_val, libc::SIGKILL); }
+                        std::thread::sleep(std::time::Duration::from_millis(200));
+                        proc.status = "killed (manual)".to_string();
+                        write_state(&state_file, &state);
+                        println!("Process {} stopped.", pid_str);
+                    } else {
+                        println!("Process {} is not running (status: {}).", pid_str, proc.status);
+                    }
                 } else {
-                    println!("Process {} is not running (status: {}).", pid, proc.status);
+                    println!("Process {} not found.", pid_str);
                 }
             } else {
-                println!("Process {} not found.", pid);
+                println!("Error: You must specify either a PID or a valid --name.");
             }
         }
         Some(Commands::Remove { pid }) => {

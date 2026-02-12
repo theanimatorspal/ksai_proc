@@ -1,0 +1,20 @@
+graph TD;
+    User((User)) -->|CLI Commands| Main[ksai_proc CLI]
+    User -->|Interactive Mode| TUI[Terminal UI]
+
+    subgraph "ksai_proc Core"
+        Main -->|Reads/Writes| State[(State File .json)]
+        TUI -->|Reads/Writes| State
+        Main -->|Spawns| ProcMgr[Process Manager]
+        TUI -->|Monitors| ProcMgr
+    end
+
+    subgraph "Managed System"
+        ProcMgr -->|Launch/Kill| Child1[Child Process 1]
+        ProcMgr -->|Launch/Kill| Child2[Child Process 2]
+        Child1 -->|Stdout/Stderr| Log1[Log File 1]
+        Child2 -->|Stdout/Stderr| Log2[Log File 2]
+    end
+
+    TUI -.->|Reads| Log1
+    TUI -.->|Reads| Log2

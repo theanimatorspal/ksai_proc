@@ -65,11 +65,21 @@ pub fn launch_process_with_name(
         sys.refresh_all();
 
         let state = read_state(state_file);
+        let final_name = display_name.clone().unwrap_or_else(|| script_name.clone());
+
         for (pid_str, proc) in state {
-            if proc.cmd_str == cmd_str && proc.working_dir == cwd && proc.status == "running" {
-                if let Ok(pid) = pid_str.parse::<u32>() {
+            if proc.status == "running" {
+                 if let Ok(pid) = pid_str.parse::<u32>() {
+                    // Check if process is actually running
                     if sys.process(Pid::from_u32(pid)).is_some() {
-                        return Err(io::Error::new(io::ErrorKind::Other, format!("Process '{}' is already running in {} (PID {})", cmd_str, cwd, pid)));
+                        // Check for duplicate command/cwd (existing check)
+                        if proc.cmd_str == cmd_str && proc.working_dir == cwd {
+                             return Err(io::Error::new(io::ErrorKind::Other, format!("Process '{}' is already running in {} (PID {})", cmd_str, cwd, pid)));
+                        }
+                        // Check for duplicate display name (NEW check)
+                        if proc.display_name == final_name {
+                             return Err(io::Error::new(io::ErrorKind::AlreadyExists, format!("A process with the name '{}' is already running (PID {})", final_name, pid)));
+                        }
                     }
                 }
             }

@@ -1,0 +1,31 @@
+flowchart LR
+    subgraph Input
+        CLI[CLI Args]
+        Key[Keyboard Events]
+    end
+
+    subgraph Processing
+        Parser[Argument Parser]
+        Handler[Command Handler]
+        TUILoop[TUI Event Loop]
+        Monitor[Resource Monitor]
+    end
+
+    subgraph Storage
+        StateFile[(state.json)]
+        FileSystem[File System]
+    end
+
+    CLI --> Parser
+    Parser --> Handler
+    Handler -->|Update| StateFile
+    Handler -->|Spawn| FileSystem
+
+    Key --> TUILoop
+    TUILoop -->|Poll| StateFile
+    TUILoop -->|Read Logs| FileSystem
+    Monitor -->|Query /proc| FileSystem
+    TUILoop -->|Update Display| Monitor
+
+    StateFile -->|Read Config| Handler
+    StateFile -->|Read Process List| TUILoop

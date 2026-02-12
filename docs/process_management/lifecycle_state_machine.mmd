@@ -1,0 +1,14 @@
+stateDiagram-v2
+    [*] --> Running : Launch (run/restart)
+
+    Running --> Completed : Process Exits Successfully
+    Running --> KilledManual : User Stops (stop/kill)
+    Running --> KilledTimeout : Timeout Exceeded
+
+    Completed --> [*] : Prune/Remove
+    KilledManual --> [*] : Prune/Remove
+    KilledTimeout --> [*] : Prune/Remove
+
+    Completed --> Running : Restart
+    KilledManual --> Running : Restart
+    KilledTimeout --> Running : Restart
