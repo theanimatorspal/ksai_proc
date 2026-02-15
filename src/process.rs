@@ -69,9 +69,15 @@ pub fn launch_process_with_name(
 
         for (pid_str, proc) in state {
             if proc.status == "running" {
-                 if let Ok(pid) = pid_str.parse::<u32>() {
-                    // Check if process is actually running
-                    if sys.process(Pid::from_u32(pid)).is_some() {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    let sys_pid = Pid::from_u32(pid);
+                    let status = sys.process(sys_pid).map(|p| p.status());
+                    let is_alive = match status {
+                        Some(sysinfo::ProcessStatus::Zombie) => false,
+                        Some(_) => true,
+                        None => false,
+                    };
+                    if is_alive {
                         // Check for duplicate command/cwd (existing check)
                         if proc.cmd_str == cmd_str && proc.working_dir == cwd {
                              return Err(io::Error::new(io::ErrorKind::Other, format!("Process '{}' is already running in {} (PID {})", cmd_str, cwd, pid)));
@@ -152,11 +158,10 @@ pub fn revive_dead_processes(_script_dir: &Path, state_file: &Path, _log_dir: &P
     for (old_pid, proc) in pids_to_revive {
         println!("Reviving process {} (old PID: {})...", proc.cmd_str, old_pid);
         // Remove old process from state file immediately
-        {
-            let mut current_state = read_state(state_file);
-            current_state.remove(&old_pid);
-            write_state(state_file, &current_state);
-        }
+        // Remove old process from state file immediately
+        update_state(state_file, |state| {
+            state.remove(&old_pid);
+        });
         
         if let Ok(mut f) = OpenOptions::new().append(true).open(&proc.log_file) {
             writeln!(f, "\n--- 🔄 AUTO-REVIVED (was PID {}) @ {} ---", old_pid, Local::now()).ok();

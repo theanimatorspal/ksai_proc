@@ -18,6 +18,18 @@ pub struct PendingLaunch {
     pub working_dir: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ScheduledJob {
+    pub name: String,
+    pub command: String,
+    pub args: Vec<String>,
+    pub frequency: String, // e.g., "1m", "1h", "1d"
+    pub start_at: u64, // Unix timestamp
+    pub working_dir: String,
+    pub last_run: Option<u64>, // Timestamp of last run
+    pub enabled: bool,
+}
+
 #[derive(PartialEq)]
 pub enum Mode {
     Navigate,
