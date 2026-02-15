@@ -66,6 +66,20 @@ Removes all non-running (stopped, killed, completed) processes from the tracking
 
 *   **Syntax**: `ksai_proc prune`
 
+### `schedule`
+Manages persistent scheduled jobs.
+
+*   **Subcommands**:
+    *   `add`: Adds a new scheduled job.
+        *   `ksai_proc schedule add --name "cleanup" --every "1d" "/bin/bash cleanup.sh"`
+        *   Options: `--every <FREQ>` (e.g., `10s`, `5m`, `1h`), `--start-at <TIME>` (optional start time), `--name <NAME>`.
+    *   `list`: Lists all scheduled jobs.
+        *   `ksai_proc schedule list`
+    *   `stop`: Disables a scheduled job without removing it.
+        *   `ksai_proc schedule stop <NAME>`
+    *   `remove`: Removess a scheduled job entirely.
+        *   `ksai_proc schedule remove <NAME>`
+
 ### `revive`
 Checks for any processes that are marked as "running" in the state file but are not actually running in the system (e.g., due to a crash or reboot), and restarts them.
 

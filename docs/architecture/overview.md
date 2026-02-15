@@ -27,6 +27,13 @@
 *   **Logic**: `ui.rs`, `app.rs`
 *   **Responsibility**: Renders the visual interface using `ratatui` and `crossterm`.
 *   **Interaction**: Polls the `state_file` to update the display and accepts user input to control processes.
+### 5. Scheduler
+*   **Logic**: `scheduler.rs`
+*   **Responsibility**:
+    *   Maintains a list of recurring or one-time jobs (`scheduledscripts.json`).
+    *   Runs in a background loop (daemonized or triggered by CLI).
+    *   Handles frequency-based execution (e.g., "every 1m").
+    *   Ensures scheduled processes are running if they are supposed to be active.
 
 ## Key Design Principles
 

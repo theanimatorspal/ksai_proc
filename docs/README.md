@@ -1,6 +1,6 @@
-# ksai_proc Documentation
+# ⚙️ ksai_proc Documentation
 
-Welcome to the documentation for `ksai_proc`, a lightweight TUI process manager for Linux written in Rust.
+Welcome to the detailed documentation for `ksai_proc`, a lightweight persistent process scheduler and manager written in Rust.
 
 ## Overview
 
